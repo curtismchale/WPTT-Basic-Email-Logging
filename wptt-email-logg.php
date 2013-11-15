@@ -28,48 +28,64 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 require_once( plugin_dir_path( __FILE__ ) . 'WP_Logging.php' );
 
 /**
+ * Setting up our changes to the WP_Logging class
+ *
+ * @since 1.1
+ * @author SFNdesign, Curtis McHale
+ */
+function wptt_email_logg_cpt_mods(){
+
+	if ( defined( 'LOCAL_ENV' ) && LOCAL_ENV || defined( 'STAGING_ENV' ) && STAGING_ENV ){
+		add_filter( 'wp_logging_post_type_args', 'wptt_change_cpt_args' );
+	}
+
+} // wptt_email_logg_cpt_mods
+add_action( 'setup_theme', 'wptt_email_logg_cpt_mods' );
+
+/**
  * Changes the default WP_Logging CPT items so that the default is to show
  * them in the WordPress admin.
  *
  * @since 1.0
  * @author SFNdesign, Curtis McHale
  */
-function wptt_email_logg_cpt_mods( $args ){
+function wptt_change_cpt_args( $args ){
 
 	$args['public'] = true;
 
 	return $args;
 
-} // wptt_email_logg_cpt_mods
-if ( defined( 'DEVELOPMENT' ) && DEVELOPMENT ){
-	add_filter( 'wp_logging_post_type_args', 'wptt_email_logg_cpt_mods' );
-} // if DEVELOPMENT
+} // wptt_change_cpt_args
 
-if ( ! function_exists( 'wp_mail' ) && defined( 'DEVELOPMENT' ) && DEVELOPMENT ){
+if ( ! function_exists( 'wp_mail' ) ){
 
-	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ){
-		global $post;
+	if ( defined( 'LOCAL_ENV' ) && LOCAL_ENV || defined( 'staging_env' ) && STAGING_ENV ){
 
-		if ( ! is_object( $post ) ) $post_id = null;
+		function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ){
+			global $post;
 
-		$log_data = array(
-			'post_title'     => 'Logged WordPress email to ' . $to . '',
-			'post_content'   => $message,
-			'post_parent'    => $post_id,
-			'log_type'       => 'event',
-		);
+			if ( ! is_object( $post ) ) $post_id = null;
 
-		$log_meta = array(
-			'to'           => $to,
-			'subject'      => $subject,
-			'message'      => $message,
-			'headers'      => $headers,
-			'attachments'  => $attachments,
-			'current_user' => wp_get_current_user(),
-			'post_object'  => $post,
-		);
+			$log_data = array(
+				'post_title'     => 'Logged WordPress email to ' . $to . '',
+				'post_content'   => $message,
+				'post_parent'    => $post_id,
+				'log_type'       => 'event',
+			);
 
-		WP_Logging::insert_log( $log_data, $log_meta );
-	} // wp_mail
+			$log_meta = array(
+				'to'           => $to,
+				'subject'      => $subject,
+				'message'      => $message,
+				'headers'      => $headers,
+				'attachments'  => $attachments,
+				'current_user' => wp_get_current_user(),
+				'post_object'  => $post,
+			);
+
+			WP_Logging::insert_log( $log_data, $log_meta );
+		} // wp_mail
+
+	}
 
 } // if
