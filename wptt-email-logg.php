@@ -3,7 +3,7 @@
 Plugin Name: WPTT Email Logging
 Plugin URI: http://wpthemetutorial.com
 Description: Stops all emails going out from WordPress and logs them.
-Version: 1.0
+Version: 1.3
 Author: WP Theme Tutorial, Curtis McHale
 Author URI: http://wpthemetutorial.com
 License: GPLv2 or later
@@ -25,67 +25,132 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-require_once( plugin_dir_path( __FILE__ ) . 'WP_Logging.php' );
+if ( ! class_exists( 'WP_Logging' ) ){
+	require_once( plugin_dir_path( __FILE__ ) . 'WP_Logging.php' );
+}
 
-/**
- * Setting up our changes to the WP_Logging class
- *
- * @since 1.1
- * @author SFNdesign, Curtis McHale
- */
-function wptt_email_logg_cpt_mods(){
+class WPTT_Email_Logging{
 
-	if ( defined( 'LOCAL_ENV' ) && LOCAL_ENV || defined( 'STAGING_ENV' ) && STAGING_ENV ){
-		add_filter( 'wp_logging_post_type_args', 'wptt_change_cpt_args' );
+	public function __construct(){
+
+		if ( $this->is_local() || $this->is_staging() ){
+			add_filter( 'wp_logging_post_type_args', array( $this, 'change_cpt_args' ) );
+		}
+
+		add_action( 'phpmailer_init', array( $this, 'mail_log' ) );
+
+	} // __construct
+
+	/**
+	 * Allows the user to define local sites
+	 *
+	 * @since 1.3
+	 * @author SFNdesign, Curtis McHale
+	 * @access private
+	 *
+	 * @filter wptt_email_logging_is_local         Allows other plugins to override internal settings
+	 */
+	private function is_local(){
+		return apply_filters( 'wptt_email_logging_is_local', false );
 	}
 
-} // wptt_email_logg_cpt_mods
-add_action( 'setup_theme', 'wptt_email_logg_cpt_mods' );
-
-/**
- * Changes the default WP_Logging CPT items so that the default is to show
- * them in the WordPress admin.
- *
- * @since 1.0
- * @author SFNdesign, Curtis McHale
- */
-function wptt_change_cpt_args( $args ){
-
-	$args['public'] = true;
-
-	return $args;
-
-} // wptt_change_cpt_args
-
-if ( ! function_exists( 'wp_mail' ) ){
-
-	if ( defined( 'LOCAL_ENV' ) && LOCAL_ENV || defined( 'staging_env' ) && STAGING_ENV ){
-
-		function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ){
-			global $post;
-
-			if ( ! is_object( $post ) ) $post_id = null;
-
-			$log_data = array(
-				'post_title'     => 'Logged WordPress email to ' . $to . '',
-				'post_content'   => $message,
-				'post_parent'    => $post_id,
-				'log_type'       => 'event',
-			);
-
-			$log_meta = array(
-				'to'           => $to,
-				'subject'      => $subject,
-				'message'      => $message,
-				'headers'      => $headers,
-				'attachments'  => $attachments,
-				'current_user' => wp_get_current_user(),
-				'post_object'  => $post,
-			);
-
-			WP_Logging::insert_log( $log_data, $log_meta );
-		} // wp_mail
-
+	/**
+	 * Allows the user to define staging sites
+	 *
+	 * @since 1.3
+	 * @author SFNdesign, Curtis McHale
+	 * @access private
+	 *
+	 * @filter wptt_email_logging_is_staging         Allows other plugins to override internal settings
+	 */
+	private function is_staging(){
+		return apply_filters( 'wptt_email_logging_is_staging', false );
 	}
 
-} // if
+	/**
+	 * Allows the user to define live sites
+	 *
+	 * @since 1.3
+	 * @author SFNdesign, Curtis McHale
+	 * @access private
+	 *
+	 * @filter wptt_email_logging_is_live         Allows other plugins to override internal settings
+	 */
+	private function is_live(){
+		return apply_filters( 'wptt_email_logging_is_live', false );
+	}
+
+	/**
+	 * Logs emails coming out of wp_mail by hooking phpmailer_init
+	 *
+	 * @since 1.3
+	 * @author SFNdesign, Curtis McHale
+	 *
+	 * @param array/obj     $phpmailer     required     The PHP mailer object
+	 *
+	 * @return array/obj    $phpmailer                  Our maybe modified PHPmailer object
+	 *
+	 * @uses $this->is_live()                           Returns true if we are on a defined live environment
+	 */
+	public function mail_log( $phpmailer ){
+
+		if ( $this->is_live() ) {
+			return $phpmailer;
+		} else {
+			$this->create_log( $phpmailer );
+			$phpmailer->ClearAllRecipients();
+			return $phpmailer;
+		}
+
+	} // mail_log
+
+	/**
+	 * Creates our log in WP_Logging
+	 *
+	 * @since 1.3
+	 * @author SFNdesign, Curtis McHale
+	 * @access private
+	 *
+	 * @param array/obj     $phpmailer     required     PHPmailer object
+	 *
+	 * @uses esc_attr()                                 Keeping our email titles safe
+	 * @uses wp_kses_post()                             Sanitizing content just like a WordPress post allows
+	 * @uses WP_Logging::insert_log                     Inserts a log in WP_Logging
+	 */
+	private function create_log( $phpmailer ){
+
+		$subject = $phpmailer->Subject;
+		$content = $phpmailer->Body;
+
+		$log_data = array(
+			'post_title'     => 'Logged WordPress email Subject: ' . esc_attr( $subject ) .' ',
+			'post_content'   => wp_kses_post( $content ),
+			'log_type'       => 'event',
+		);
+
+		$log_meta = array(
+			'phpmailer'           => $phpmailer,
+		);
+
+		WP_Logging::insert_log( $log_data, $log_meta );
+
+	} // create_log
+
+	/**
+	 * Changes the default WP_Logging CPT items so that the default is to show
+	 * them in the WordPress admin.
+	 *
+	 * @since 1.0
+	 * @author SFNdesign, Curtis McHale
+	 */
+	public function change_cpt_args( $args ){
+
+		$args['public'] = true;
+
+		return $args;
+
+	} // change_cpt_args
+
+} // WPTT_Email_Logging
+
+new WPTT_Email_Logging();
