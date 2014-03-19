@@ -143,7 +143,7 @@ class WPTT_Email_Logging{
 	 * @since 1.0
 	 * @author SFNdesign, Curtis McHale
 	 */
-	public function change_cpt_args( $args ){
+	public function change_cpt_args( $args = array() ){
 
 		$args['public'] = true;
 
@@ -153,4 +153,4 @@ class WPTT_Email_Logging{
 
 } // WPTT_Email_Logging
 
-new WPTT_Email_Logging();
+$GLOBALS['wptt_basic_email_logging'] = new WPTT_Email_Logging();
