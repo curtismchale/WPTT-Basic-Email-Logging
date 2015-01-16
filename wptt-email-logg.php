@@ -37,7 +37,7 @@ class WPTT_Email_Logging{
 			add_filter( 'wp_logging_post_type_args', array( $this, 'change_cpt_args' ) );
 		}
 
-		add_action( 'phpmailer_init', array( $this, 'mail_log' ) );
+		add_action( 'phpmailer_init', array( $this, 'mail_log' ), 9999 );
 
 	} // __construct
 
