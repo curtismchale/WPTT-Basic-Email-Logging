@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: WPTT Email Logging
-Plugin URI: http://wpthemetutorial.com
+Plugin URI: http://sfndesign.ca
 Description: Stops all emails going out from WordPress and logs them.
 Version: 1.3
 Author: WP Theme Tutorial, Curtis McHale
-Author URI: http://wpthemetutorial.com
+Author URI: http://sfndesign.ca
 License: GPLv2 or later
 */
 
